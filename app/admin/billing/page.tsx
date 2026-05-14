@@ -78,7 +78,7 @@ export default function BillingPage() {
       <Card className="p-6">
         <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6">Revenue Trends (6 Months)</h3>
         <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
