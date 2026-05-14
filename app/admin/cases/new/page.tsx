@@ -41,7 +41,7 @@ export default function NewCasePage() {
     try {
       const [banksRes, engRes] = await Promise.all([
         supabase.from('banks').select('id, name'),
-        supabase.from('users').select('id, full_name').eq('role', 'engineer')
+        supabase.from('users').select('id, name').eq('role', 'engineer')
       ]);
       
       setBanks(banksRes.data || []);
@@ -106,7 +106,7 @@ export default function NewCasePage() {
     { label: 'Mortgage', value: 'mortgage' },
   ];
 
-  const engineerOptions = engineers.map(e => ({ label: e.full_name, value: e.id }));
+  const engineerOptions = engineers.map(e => ({ label: e.name, value: e.id }));
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

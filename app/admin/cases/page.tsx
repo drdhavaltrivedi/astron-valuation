@@ -23,7 +23,7 @@ export default function CasesPage() {
         .select(`
           *,
           banks (name),
-          users:assigned_engineer_id (full_name)
+          users:assigned_engineer_id (name)
         `)
         .order('created_at', { ascending: false });
 
@@ -112,12 +112,12 @@ export default function CasesPage() {
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{item.banks?.name}</span>
                     </td>
                     <td className="px-6 py-4">
-                      {item.users?.full_name ? (
+                      {item.users?.name ? (
                         <div className="flex items-center text-sm text-gray-900 dark:text-white">
                           <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center mr-2 text-[10px] font-bold text-blue-600">
-                            {item.users.full_name.split(' ').map((n: string) => n[0]).join('')}
+                            {item.users.name.split(' ').map((n: string) => n[0]).join('')}
                           </div>
-                          {item.users.full_name}
+                          {item.users.name}
                         </div>
                       ) : (
                         <button className="flex items-center text-xs text-blue-600 font-semibold hover:underline">

@@ -27,7 +27,7 @@ export default function UsersPage() {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newUser, setNewUser] = useState({ full_name: '', email: '', role: 'engineer' });
+  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'engineer' });
 
   useEffect(() => {
     fetchUsers();
@@ -38,7 +38,7 @@ export default function UsersPage() {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .order('full_name', { ascending: true });
+        .order('name', { ascending: true });
       
       if (error) throw error;
       setUsers(data || []);
@@ -86,7 +86,7 @@ export default function UsersPage() {
 
   function startEdit(user: any) {
     setEditingId(user.id);
-    setNewUser({ full_name: user.full_name, email: user.email, role: user.role });
+    setNewUser({ name: user.name, email: user.email, role: user.role });
     setIsInviteModalOpen(true);
   }
 
@@ -103,7 +103,7 @@ export default function UsersPage() {
   }
 
   const filteredUsers = users.filter(user => 
-    user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.role?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -189,10 +189,10 @@ export default function UsersPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs">
-                          {user.full_name?.charAt(0)}
+                          {user.name?.charAt(0)}
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-gray-900 dark:text-white">{user.full_name}</p>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white">{user.name}</p>
                           <p className="text-[10px] text-gray-500 uppercase tracking-tighter">{user.id.substring(0, 8)}</p>
                         </div>
                       </div>
@@ -261,8 +261,8 @@ export default function UsersPage() {
               <Input 
                 label="Full Name" 
                 placeholder="e.g. Amit Sharma"
-                value={newUser.full_name}
-                onChange={(e) => setNewUser({...newUser, full_name: e.target.value})}
+                value={newUser.name}
+                onChange={(e) => setNewUser({...newUser, name: e.target.value})}
               />
               <Input 
                 label="Email Address" 

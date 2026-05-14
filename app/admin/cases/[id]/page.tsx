@@ -130,7 +130,7 @@ export default function CaseDetailsPage({ params: paramsPromise }: { params: Pro
                   address: caseData.address,
                   propertyType: caseData.property_type,
                   visitDate: new Date(caseData.created_at).toLocaleDateString(),
-                  engineer: caseData.users?.full_name,
+                  engineer: caseData.users?.name,
                   measurements: {
                     plotArea: measurements?.plot_area,
                     builtupArea: measurements?.builtup_area,
@@ -317,7 +317,7 @@ export default function CaseDetailsPage({ params: paramsPromise }: { params: Pro
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-500 uppercase">Bank</p>
-                  <p className="text-sm font-bold">{caseData.bank}</p>
+                  <p className="text-sm font-bold">{caseData.banks?.name}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -326,7 +326,7 @@ export default function CaseDetailsPage({ params: paramsPromise }: { params: Pro
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-500 uppercase">Field Engineer</p>
-                  <p className="text-sm font-bold">{caseData.engineer}</p>
+                  <p className="text-sm font-bold">{caseData.users?.name || 'Not Assigned'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">

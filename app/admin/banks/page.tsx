@@ -23,7 +23,7 @@ export default function BanksPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newBank, setNewBank] = useState({ name: '', code: '' });
+  const [newBank, setNewBank] = useState({ name: '', code: '', valuation_fee: '' });
 
   useEffect(() => {
     fetchBanks();
@@ -60,10 +60,15 @@ export default function BanksPage() {
     if (!newBank.name || !newBank.code) return alert('Please fill all fields');
     setIsSaving(true);
     try {
+      const payload = {
+        ...newBank,
+        valuation_fee: parseFloat(newBank.valuation_fee.toString()) || 0
+      };
+
       if (editingId) {
         const { data, error } = await supabase
           .from('banks')
-          .update(newBank)
+          .update(payload)
           .eq('id', editingId)
           .select()
           .single();
@@ -73,7 +78,7 @@ export default function BanksPage() {
       } else {
         const { data, error } = await supabase
           .from('banks')
-          .insert([newBank])
+          .insert([payload])
           .select()
           .single();
         
@@ -82,7 +87,7 @@ export default function BanksPage() {
       }
       setIsAddModalOpen(false);
       setEditingId(null);
-      setNewBank({ name: '', code: '' });
+      setNewBank({ name: '', code: '', valuation_fee: '' });
     } catch (error) {
       console.error('Error saving bank:', error);
       alert('Failed to save bank. Code might be duplicate.');
@@ -93,7 +98,11 @@ export default function BanksPage() {
 
   function startEdit(bank: any) {
     setEditingId(bank.id);
-    setNewBank({ name: bank.name, code: bank.code });
+    setNewBank({ 
+      name: bank.name, 
+      code: bank.code, 
+      valuation_fee: bank.valuation_fee?.toString() || '0' 
+    });
     setIsAddModalOpen(true);
   }
 
@@ -133,17 +142,18 @@ export default function BanksPage() {
                 <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Bank Name</th>
                 <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Code</th>
                 <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Portal Status</th>
+                <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Charges (₹)</th>
                 <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
               {isLoading ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">Loading banks...</td>
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">Loading banks...</td>
                 </tr>
               ) : filteredBanks.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">No banks found.</td>
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">No banks found.</td>
                 </tr>
               ) : (
                 filteredBanks.map((bank) => (
@@ -166,6 +176,11 @@ export default function BanksPage() {
                         <ShieldCheck className="h-4 w-4" />
                         Connected
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                        ₹ {bank.valuation_fee || 0}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
@@ -214,6 +229,13 @@ export default function BanksPage() {
                 placeholder="e.g. SBI"
                 value={newBank.code}
                 onChange={(e) => setNewBank({...newBank, code: e.target.value.toUpperCase()})}
+              />
+              <Input 
+                label="Valuation Charges (₹)" 
+                placeholder="e.g. 1500"
+                type="number"
+                value={newBank.valuation_fee}
+                onChange={(e) => setNewBank({...newBank, valuation_fee: e.target.value})}
               />
               <div className="pt-2 flex gap-3">
                 <Button variant="outline" className="flex-1" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
