@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Astron Valuation Operations Platform
 
-## Getting Started
+## Overview
+Astron Consulting Services is a bank-empanelled property valuation firm. This platform digitizes their manual workflows, enabling seamless coordination between bank portals, field engineers, and administrative staff.
 
-First, run the development server:
+The platform provides a secure, role-based environment for managing the end-to-end valuation lifecycle—from case intake and field data capture to automated report generation and financial tracking.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Core Features
+- **Role-Based Dashboards**: Tailored interfaces for Super Admins, Operations Admins, and Field Engineers.
+- **Dynamic Site Visits**: Mobile-first field engineer workflow with GPS verification and categorized photo capture.
+- **Bank-Specific Reporting**: Automated PDF generation for major banks (ICICI, HDFC, etc.) using `@react-pdf/renderer`.
+- **Internal Ticketing**: Centralized communication system to resolve case queries and reduce reliance on external chat (WhatsApp).
+- **Financial MIS**: Revenue tracking, billing status, and interactive performance charts.
+- **Supabase Integration**: Robust PostgreSQL backend with real-time capabilities and edge-functions ready.
+
+## User Flow
+
+```mermaid
+graph TD
+    A[Bank/Client] -->|Sends Request| B(Admin Dashboard)
+    B -->|Create Case| C{Assign Engineer}
+    C -->|Notify| D[Engineer Mobile App]
+    D -->|Site Visit| E(GPS Check-in)
+    E -->|Data Entry| F(Measurements & Photos)
+    F -->|Submit| G{Admin Review}
+    G -->|Query Raised| D
+    G -->|Approved| H[Generate Bank PDF]
+    H -->|Submit to Bank| I(Billing & MIS)
+    I -->|Payment Received| J[Close Case]
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Entity Relationship (ER) Diagram
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```mermaid
+erDiagram
+    USERS ||--o{ CASES : "assigned_to"
+    USERS ||--o{ TICKETS : "created_by"
+    BANKS ||--o{ CASES : "belongs_to"
+    BANKS ||--o{ REPORTS : "formatted_for"
+    CASES ||--o{ VISITS : "triggers"
+    CASES ||--o{ TICKETS : "has"
+    CASES ||--o{ BILLING_ENTRIES : "generates"
+    VISITS ||--o{ PHOTOS : "captures"
+    VISITS ||--|| MEASUREMENTS : "contains"
+    VISITS ||--|| BOUNDARIES : "defines"
+    TICKETS ||--o{ TICKET_COMMENTS : "has"
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Tech Stack
+- **Framework**: [Next.js 15+](https://nextjs.org/) (App Router)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Database**: [Supabase](https://supabase.com/) (PostgreSQL)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **State Management**: [Zustand](https://docs.pmnd.rs/zustand/)
+- **Charts**: [Recharts](https://recharts.org/)
+- **PDF Generation**: [@react-pdf/renderer](https://react-pdf.org/)
 
-## Learn More
+## Setup Instructions
 
-To learn more about Next.js, take a look at the following resources:
+### 1. Prerequisites
+- Node.js 18+
+- Supabase CLI
+- Google Maps API Key (Optional for maps)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 2. Environment Variables
+Create a `.env.local` file:
+```bash
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_api_key
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3. Database Initialization
+Run the Supabase migrations:
+```bash
+supabase db push
+```
 
-## Deploy on Vercel
+### 4. Local Development
+```bash
+npm install
+npm run dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+*Developed for Astron Consulting Services*
