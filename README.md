@@ -13,6 +13,12 @@ The platform provides a secure, role-based environment for managing the end-to-e
 - **Financial MIS**: Revenue tracking, billing status, and interactive performance charts.
 - **Supabase Integration**: Robust PostgreSQL backend with real-time capabilities and edge-functions ready.
 
+## Demo Access
+The platform includes a specialized login portal for rapid testing. You can bypass traditional authentication to explore the following roles:
+- **Super Admin**: Full visibility into system-wide cases, user management, and global MIS.
+- **Admin**: Focus on case assignment, bank portal status tracking, and billing.
+- **Field Engineer**: Mobile-optimized interface for site visits, GPS check-ins, and data capture.
+
 ## User Flow
 
 ```mermaid
