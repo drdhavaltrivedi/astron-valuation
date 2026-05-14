@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -28,7 +29,26 @@ type CaseFormValues = z.infer<typeof caseSchema>;
 
 export default function NewCasePage() {
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [banks, setBanks] = useState<any[]>([]);
+  const [engineers, setEngineers] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchFormData();
+  }, []);
+
+  async function fetchFormData() {
+    try {
+      const [banksRes, engRes] = await Promise.all([
+        supabase.from('banks').select('id, name'),
+        supabase.from('users').select('id, full_name').eq('role', 'engineer')
+      ]);
+      
+      setBanks(banksRes.data || []);
+      setEngineers(engRes.data || []);
+    } catch (error) {
+      console.error('Error fetching form data:', error);
+    }
+  }
 
   const {
     register,
@@ -43,19 +63,32 @@ export default function NewCasePage() {
 
   const onSubmit = async (data: CaseFormValues) => {
     setIsSubmitting(true);
-    // Simulate API call
-    console.log('Submitting case:', data);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    router.push('/admin/cases');
+    try {
+      const { error } = await supabase.from('cases').insert([{
+        bank_id: data.bank_id,
+        application_id: data.application_id,
+        applicant_name: data.applicant_name,
+        phone: data.phone,
+        address: data.address,
+        city: data.city,
+        pincode: data.pincode,
+        property_type: data.property_type,
+        product_type: data.product_type,
+        assigned_engineer_id: data.assigned_engineer_id || null,
+        status: data.assigned_engineer_id ? 'ALLOCATED' : 'PENDING'
+      }]);
+
+      if (error) throw error;
+      router.push('/admin/cases');
+    } catch (error) {
+      console.error('Error creating case:', error);
+      alert('Failed to create case. Please check if RLS is disabled or you have permissions.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const bankOptions = [
-    { label: 'ICICI Bank', value: 'icici' },
-    { label: 'HDFC Bank', value: 'hdfc' },
-    { label: 'Axis Bank', value: 'axis' },
-    { label: 'Kotak Mahindra Bank', value: 'kotak' },
-  ];
+  const bankOptions = banks.map(b => ({ label: b.name, value: b.id }));
 
   const propertyOptions = [
     { label: 'Flat / Apartment', value: 'flat' },
@@ -72,11 +105,7 @@ export default function NewCasePage() {
     { label: 'Mortgage', value: 'mortgage' },
   ];
 
-  const engineerOptions = [
-    { label: 'Amit Sharma', value: 'eng_1' },
-    { label: 'Vijay Patel', value: 'eng_2' },
-    { label: 'Sanjay Shah', value: 'eng_3' },
-  ];
+  const engineerOptions = engineers.map(e => ({ label: e.full_name, value: e.id }));
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

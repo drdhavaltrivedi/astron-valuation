@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import { 
   ChevronLeft, 
   MapPin, 
@@ -31,39 +32,62 @@ export default function CaseDetailsPage({ params: paramsPromise }: { params: Pro
   const params = use(paramsPromise);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'details' | 'photos' | 'measurements' | 'queries'>('details');
+  const [caseData, setCaseData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const caseData = {
-    id: params.id,
-    applicant: 'Rajesh Kumar',
-    bank: 'ICICI Bank',
-    status: 'FORM_SUBMITTED',
-    date: '14 May 2026',
-    address: '102, Shanti Vihar Apartments, Satellite, Ahmedabad',
-    engineer: 'Amit Sharma',
-    propertyType: 'Residential Flat',
-    visitDetails: {
-      checkIn: '10:30 AM',
-      location: '23.0225° N, 72.5714° E',
-      ownership: 'Self Occupied',
-      locality: 'Residential'
-    },
-    measurements: {
-      plotArea: '1200',
-      builtupArea: '1800',
-      rate: '5500'
-    },
-    remarks: 'Property is in well-maintained condition. Located in a prime residential area with easy access to main road. No visible structural issues observed.',
-    photos: [
-      { url: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&q=80&w=400', category: 'Front' },
-      { url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=400', category: 'Interior' }
-    ],
-    queries: [
-      { id: '1', title: 'Road photo missing', description: 'Please provide a clear photo of the approach road.', status: 'open', priority: 'high', date: '14 May' },
-      { id: '2', title: 'Confirm Built-up Area', description: 'The area seems higher than usual for this society.', status: 'resolved', priority: 'medium', date: '13 May' },
-    ]
-  };
+  useEffect(() => {
+    fetchCaseDetails();
+  }, [params.id]);
 
-  const Template = caseData.bank === 'HDFC Bank' ? HDFCTemplate : ICICITemplate;
+  async function fetchCaseDetails() {
+    try {
+      const { data, error } = await supabase
+        .from('cases')
+        .select(`
+          *,
+          banks (*),
+          users:assigned_engineer_id (*),
+          visits (
+            *,
+            measurements (*),
+            boundaries (*),
+            photos (*)
+          )
+        `)
+        .eq('id', params.id)
+        .single();
+
+      if (error) throw error;
+      setCaseData(data);
+    } catch (error) {
+      console.error('Error fetching case details:', error);
+  async function updateStatus(newStatus: string) {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('cases')
+        .update({ status: newStatus })
+        .eq('id', params.id);
+      
+      if (error) throw error;
+      alert(`Case ${newStatus.toLowerCase()} successfully.`);
+      router.push('/admin/cases');
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Failed to update status.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (isLoading) return <div className="flex items-center justify-center h-96"><Loader2 className="animate-spin" /></div>;
+  if (!caseData) return <div>Case not found</div>;
+
+  const visit = caseData.visits?.[0];
+  const measurements = visit?.measurements?.[0];
+  const boundaries = visit?.boundaries?.[0];
+
+  const Template = caseData.banks?.name === 'HDFC Bank' ? HDFCTemplate : ICICITemplate;
 
   return (
     <div className="space-y-6">
@@ -83,29 +107,44 @@ export default function CaseDetailsPage({ params: paramsPromise }: { params: Pro
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" icon={XCircle} className="text-red-600 border-red-100 hover:bg-red-50">Reject</Button>
+          <Button 
+            variant="outline" 
+            icon={XCircle} 
+            className="text-red-600 border-red-100 hover:bg-red-50"
+            onClick={() => updateStatus('REJECTED')}
+          >
+            Reject
+          </Button>
           
           <PDFDownloadLink
             document={
               <Template 
                 data={{
                   caseId: `VAL-${caseData.id}`,
-                  applicant: caseData.applicant,
-                  bank: caseData.bank,
+                  applicant: caseData.applicant_name,
+                  bank: caseData.banks?.name,
                   address: caseData.address,
-                  propertyType: caseData.propertyType,
-                  visitDate: caseData.date,
-                  engineer: caseData.engineer,
-                  measurements: caseData.measurements,
-                  remarks: caseData.remarks,
-                  photos: caseData.photos
+                  propertyType: caseData.property_type,
+                  visitDate: new Date(caseData.created_at).toLocaleDateString(),
+                  engineer: caseData.users?.full_name,
+                  measurements: {
+                    plotArea: measurements?.plot_area,
+                    builtupArea: measurements?.builtup_area,
+                    rate: measurements?.carpet_rate
+                  },
+                  remarks: visit?.remarks,
+                  photos: visit?.photos || []
                 }} 
               />
             }
-            fileName={`Valuation_Report_${caseData.applicant}.pdf`}
+            fileName={`Valuation_Report_${caseData.applicant_name}.pdf`}
           >
             {({ loading }) => (
-              <Button icon={loading ? Loader2 : CheckCircle} disabled={loading}>
+              <Button 
+                icon={loading ? Loader2 : CheckCircle} 
+                disabled={loading}
+                onClick={() => updateStatus('COMPLETED')}
+              >
                 {loading ? 'Generating...' : 'Approve & Generate Report'}
               </Button>
             )}
@@ -135,38 +174,42 @@ export default function CaseDetailsPage({ params: paramsPromise }: { params: Pro
 
           <div className="animate-in fade-in duration-300">
             {activeTab === 'details' && (
-              <div className="space-y-6">
-                <Card>
+              <div className="space-y-                <Card>
                   <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6">Property Submission</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-1">
                       <p className="text-xs text-gray-500">Ownership Type</p>
-                      <p className="font-bold text-gray-900 dark:text-white">{caseData.visitDetails.ownership}</p>
+                      <p className="font-bold text-gray-900 dark:text-white capitalize">{visit?.ownership_type || 'N/A'}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-gray-500">Locality Type</p>
-                      <p className="font-bold text-gray-900 dark:text-white">{caseData.visitDetails.locality}</p>
+                      <p className="font-bold text-gray-900 dark:text-white capitalize">{visit?.locality_type || 'N/A'}</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-xs text-gray-500">Check-in Time</p>
-                      <p className="font-bold text-gray-900 dark:text-white">{caseData.visitDetails.checkIn}</p>
+                      <p className="text-xs text-gray-500">Community / Building</p>
+                      <p className="font-bold text-gray-900 dark:text-white">{visit?.community || 'N/A'}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-gray-500">GPS Verification</p>
-                      <p className="font-bold text-green-600 flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        Verified Location
-                      </p>
+                      {visit?.gps_lat ? (
+                        <p className="font-bold text-green-600 flex items-center gap-1 text-xs">
+                          <MapPin className="h-3 w-3" />
+                          {visit.gps_lat.toFixed(4)}, {visit.gps_lng.toFixed(4)}
+                        </p>
+                      ) : (
+                        <p className="text-red-500 font-bold text-xs">Not Captured</p>
+                      )}
                     </div>
                   </div>
                 </Card>
-
+ 
                 <Card>
                   <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">Engineer Remarks</h3>
                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed italic">
-                    "Property is in well-maintained condition. Located in a prime residential area with easy access to main road. No visible structural issues observed."
+                    "{visit?.remarks || 'No remarks provided.'}"
                   </p>
                 </Card>
+rd>
               </div>
             )}
 
@@ -199,15 +242,15 @@ export default function CaseDetailsPage({ params: paramsPromise }: { params: Pro
                     <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                       <tr>
                         <td className="px-4 py-3 text-sm text-gray-600">Plot Area</td>
-                        <td className="px-4 py-3 text-sm font-bold">1,200 Sqft</td>
+                        <td className="px-4 py-3 text-sm font-bold">{measurements?.plot_area || 0} Sqft</td>
                       </tr>
                       <tr>
                         <td className="px-4 py-3 text-sm text-gray-600">Built-up Area</td>
-                        <td className="px-4 py-3 text-sm font-bold">1,800 Sqft</td>
+                        <td className="px-4 py-3 text-sm font-bold">{measurements?.builtup_area || 0} Sqft</td>
                       </tr>
                       <tr>
                         <td className="px-4 py-3 text-sm text-gray-600">Carpet Rate</td>
-                        <td className="px-4 py-3 text-sm font-bold">₹ 5,500 / Sqft</td>
+                        <td className="px-4 py-3 text-sm font-bold">₹ {measurements?.carpet_rate || 0} / Sqft</td>
                       </tr>
                     </tbody>
                   </table>

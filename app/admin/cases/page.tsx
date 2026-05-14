@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { Plus, Search, Filter, MoreHorizontal, FileText, UserPlus, MapPin } from 'lucide-react';
@@ -8,36 +9,32 @@ import { Plus, Search, Filter, MoreHorizontal, FileText, UserPlus, MapPin } from
 export default function CasesPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Mock data for cases
-  const cases = [
-    {
-      id: '1',
-      applicant: 'Rajesh Kumar',
-      bank: 'ICICI Bank',
-      status: 'ALLOCATED',
-      address: 'Satellite, Ahmedabad',
-      engineer: 'Amit Sharma',
-      date: '14 May 2026',
-    },
-    {
-      id: '2',
-      applicant: 'Sunit Patel',
-      bank: 'HDFC Bank',
-      status: 'NEW',
-      address: 'Vastrapur, Ahmedabad',
-      engineer: null,
-      date: '14 May 2026',
-    },
-    {
-      id: '3',
-      applicant: 'Meera Shah',
-      bank: 'Axis Bank',
-      status: 'FORM_SUBMITTED',
-      address: 'Prahlad Nagar, Ahmedabad',
-      engineer: 'Vijay Patel',
-      date: '13 May 2026',
-    },
-  ];
+  const [cases, setCases] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCases();
+  }, []);
+
+  async function fetchCases() {
+    try {
+      const { data, error } = await supabase
+        .from('cases')
+        .select(`
+          *,
+          banks (name),
+          users:assigned_engineer_id (full_name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCases(data || []);
+    } catch (error) {
+      console.error('Error fetching cases:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -92,53 +89,59 @@ export default function CasesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {cases.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-gray-900 dark:text-white">{item.applicant}</span>
-                      <span className="text-xs text-gray-500">ID: VAL-{item.id}092</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                      <MapPin className="h-3 w-3 mr-1 text-gray-400" />
-                      {item.address}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{item.bank}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    {item.engineer ? (
-                      <div className="flex items-center text-sm text-gray-900 dark:text-white">
-                        <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center mr-2 text-[10px] font-bold text-blue-600">
-                          {item.engineer.split(' ').map(n => n[0]).join('')}
-                        </div>
-                        {item.engineer}
+              {isLoading ? (
+                <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">Loading cases...</td></tr>
+              ) : cases.length === 0 ? (
+                <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No cases found.</td></tr>
+              ) : (
+                cases.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">{item.applicant_name}</span>
+                        <span className="text-xs text-gray-500">ID: {item.application_id}</span>
                       </div>
-                    ) : (
-                      <button className="flex items-center text-xs text-blue-600 font-semibold hover:underline">
-                        <UserPlus className="h-3 w-3 mr-1" />
-                        Assign
-                      </button>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(item.status)}`}>
-                      {item.status.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-1">
-                      <Link href={`/admin/cases/${item.id}`}>
-                        <Button variant="ghost" size="sm" icon={FileText}></Button>
-                      </Link>
-                      <Button variant="ghost" size="sm" icon={MoreHorizontal}></Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                        <MapPin className="h-3 w-3 mr-1 text-gray-400" />
+                        {item.address}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{item.banks?.name}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {item.users?.full_name ? (
+                        <div className="flex items-center text-sm text-gray-900 dark:text-white">
+                          <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center mr-2 text-[10px] font-bold text-blue-600">
+                            {item.users.full_name.split(' ').map((n: string) => n[0]).join('')}
+                          </div>
+                          {item.users.full_name}
+                        </div>
+                      ) : (
+                        <button className="flex items-center text-xs text-blue-600 font-semibold hover:underline">
+                          <UserPlus className="h-3 w-3 mr-1" />
+                          Assign
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(item.status)}`}>
+                        {item.status.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-1">
+                        <Link href={`/admin/cases/${item.id}`}>
+                          <Button variant="ghost" size="sm" icon={FileText}></Button>
+                        </Link>
+                        <Button variant="ghost" size="sm" icon={MoreHorizontal}></Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

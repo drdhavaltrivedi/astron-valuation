@@ -11,14 +11,23 @@ import {
   Shield, 
   MapPin,
   CheckCircle2,
-  Clock
+  Clock,
+  X,
+  Trash2,
+  Edit2
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
 
 export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [newUser, setNewUser] = useState({ full_name: '', email: '', role: 'engineer' });
 
   useEffect(() => {
     fetchUsers();
@@ -35,8 +44,56 @@ export default function UsersPage() {
       setUsers(data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
+  async function saveUser() {
+    if (!newUser.full_name || !newUser.email) return alert('Please fill all fields');
+    setIsSaving(true);
+    try {
+      if (editingId) {
+        const { data, error } = await supabase
+          .from('users')
+          .update(newUser)
+          .eq('id', editingId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        setUsers(users.map(u => u.id === editingId ? data : u));
+      } else {
+        const { data, error } = await supabase
+          .from('users')
+          .insert([newUser])
+          .select()
+          .single();
+        
+        if (error) throw error;
+        setUsers([...users, data]);
+      }
+      setIsInviteModalOpen(false);
+      setEditingId(null);
+      setNewUser({ full_name: '', email: '', role: 'engineer' });
+    } catch (error) {
+      console.error('Error saving user:', error);
+      alert('Failed to save user. Email might be duplicate.');
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
+    }
+  }
+
+  function startEdit(user: any) {
+    setEditingId(user.id);
+    setNewUser({ full_name: user.full_name, email: user.email, role: user.role });
+    setIsInviteModalOpen(true);
+  }
+
+  async function deleteUser(id: string) {
+    if (!confirm('Are you sure you want to delete this user?')) return;
+    try {
+      const { error } = await supabase.from('users').delete().eq('id', id);
+      if (error) throw error;
+      setUsers(users.filter(u => u.id !== id));
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('Failed to delete user.');
     }
   }
 
@@ -53,7 +110,7 @@ export default function UsersPage() {
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">User Management</h2>
           <p className="mt-2 text-gray-600 dark:text-gray-400">Control access for admins and field engineers.</p>
         </div>
-        <Button icon={UserPlus}>Invite User</Button>
+        <Button icon={UserPlus} onClick={() => setIsInviteModalOpen(true)}>Invite User</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -162,7 +219,20 @@ export default function UsersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <Button variant="ghost" size="sm">Manage</Button>
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => startEdit(user)}
+                          className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                        >
+                          <Edit2 className="h-5 w-5" />
+                        </button>
+                        <button 
+                          onClick={() => deleteUser(user.id)}
+                          className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -171,6 +241,48 @@ export default function UsersPage() {
           </table>
         </div>
       </Card>
+
+      {/* Invite User Modal */}
+      {isInviteModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">{editingId ? 'Edit User' : 'Invite New User'}</h3>
+              <button onClick={() => { setIsInviteModalOpen(false); setEditingId(null); setNewUser({ full_name: '', email: '', role: 'engineer' }); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <Input 
+                label="Full Name" 
+                placeholder="e.g. Amit Sharma"
+                value={newUser.full_name}
+                onChange={(e) => setNewUser({...newUser, full_name: e.target.value})}
+              />
+              <Input 
+                label="Email Address" 
+                placeholder="amit@astron.com"
+                value={newUser.email}
+                onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+              />
+              <Select 
+                label="Role"
+                value={newUser.role}
+                onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                options={[
+                  { label: 'Admin', value: 'admin' },
+                  { label: 'Field Engineer', value: 'engineer' },
+                  { label: 'Super Admin', value: 'super_admin' },
+                ]}
+              />
+              <div className="pt-2 flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setIsInviteModalOpen(false)}>Cancel</Button>
+                <Button className="flex-1" isLoading={isSaving} onClick={saveUser}>Send Invite</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

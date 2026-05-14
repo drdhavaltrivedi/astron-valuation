@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import { 
   ChevronLeft, 
   MapPin, 
@@ -22,6 +23,9 @@ import Select from '@/components/ui/Select';
 export default function VisitForm({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const router = useRouter();
+  const [caseData, setCaseData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState(1);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isCapturingLocation, setIsCapturingLocation] = useState(false);
@@ -33,6 +37,48 @@ export default function VisitForm({ params: paramsPromise }: { params: Promise<{
     surroundings: []
   });
 
+  // Form State
+  const [propertyDetails, setPropertyDetails] = useState({
+    ownership_type: 'self',
+    locality_type: 'res',
+    community: '',
+    remarks: ''
+  });
+  const [measurementData, setMeasurementData] = useState({
+    plot_area: '',
+    builtup_area: '',
+    length: '',
+    depth: '',
+    carpet_rate: ''
+  });
+  const [boundaryData, setBoundaryData] = useState({
+    north: '',
+    south: '',
+    east: '',
+    west: ''
+  });
+
+  useEffect(() => {
+    fetchCase();
+  }, [params.id]);
+
+  async function fetchCase() {
+    try {
+      const { data, error } = await supabase
+        .from('cases')
+        .select('*, banks(name)')
+        .eq('id', params.id)
+        .single();
+      
+      if (error) throw error;
+      setCaseData(data);
+    } catch (error) {
+      console.error('Error fetching case:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   const steps = [
     { id: 1, name: 'Check-in', icon: MapPin },
     { id: 2, name: 'Details', icon: Info },
@@ -40,6 +86,63 @@ export default function VisitForm({ params: paramsPromise }: { params: Promise<{
     { id: 4, name: 'Photos', icon: Camera },
     { id: 5, name: 'Review', icon: CheckCircle2 }
   ];
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      // 1. Create Visit Record
+      const { data: visit, error: visitError } = await supabase
+        .from('visits')
+        .insert([{
+          case_id: params.id,
+          engineer_id: (await supabase.auth.getUser()).data.user?.id || '00000000-0000-0000-0000-000000000000', // Fallback for demo
+          gps_lat: location?.lat,
+          gps_lng: location?.lng,
+          ownership_type: propertyDetails.ownership_type,
+          locality_type: propertyDetails.locality_type,
+          community: propertyDetails.community,
+          remarks: propertyDetails.remarks,
+          visit_completed_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (visitError) throw visitError;
+
+      // 2. Create Measurements & Boundaries
+      await Promise.all([
+        supabase.from('measurements').insert([{
+          visit_id: visit.id,
+          plot_area: parseFloat(measurementData.plot_area),
+          builtup_area: parseFloat(measurementData.builtup_area),
+          length: parseFloat(measurementData.length),
+          depth: parseFloat(measurementData.depth),
+          carpet_rate: parseFloat(measurementData.carpet_rate)
+        }]),
+        supabase.from('boundaries').insert([{
+          visit_id: visit.id,
+          north: boundaryData.north,
+          south: boundaryData.south,
+          east: boundaryData.east,
+          west: boundaryData.west
+        }])
+      ]);
+
+      // 3. Update Case Status
+      await supabase
+        .from('cases')
+        .update({ status: 'FORM_SUBMITTED' })
+        .eq('id', params.id);
+
+      alert('Visit Report Submitted Successfully!');
+      router.push('/engineer');
+    } catch (error) {
+      console.error('Error submitting visit:', error);
+      alert('Failed to submit report. Please check required fields.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const captureLocation = () => {
     setIsCapturingLocation(true);
@@ -88,8 +191,12 @@ export default function VisitForm({ params: paramsPromise }: { params: Promise<{
             <ChevronLeft className="h-6 w-6 text-gray-500" />
           </button>
           <div>
-            <h1 className="text-lg font-bold text-gray-900 dark:text-white">Case #VAL-{params.id}</h1>
-            <p className="text-xs text-gray-500">Amit Sharma • ICICI Bank</p>
+            <h1 className="text-lg font-bold text-gray-900 dark:text-white">
+              {isLoading ? 'Loading...' : `Case #${caseData?.application_id || 'VAL-'+params.id}`}
+            </h1>
+            <p className="text-xs text-gray-500">
+              {caseData?.applicant_name} • {caseData?.banks?.name}
+            </p>
           </div>
         </div>
         
@@ -159,6 +266,8 @@ export default function VisitForm({ params: paramsPromise }: { params: Promise<{
               <h2 className="text-lg font-bold text-gray-900 dark:text-white border-b border-gray-50 dark:border-gray-800 pb-4">General Details</h2>
               <Select 
                 label="Ownership Type"
+                value={propertyDetails.ownership_type}
+                onChange={(e) => setPropertyDetails({...propertyDetails, ownership_type: e.target.value})}
                 options={[
                   { label: 'Self Occupied', value: 'self' },
                   { label: 'Tenanted', value: 'tenant' },
@@ -167,18 +276,27 @@ export default function VisitForm({ params: paramsPromise }: { params: Promise<{
               />
               <Select 
                 label="Locality Type"
+                value={propertyDetails.locality_type}
+                onChange={(e) => setPropertyDetails({...propertyDetails, locality_type: e.target.value})}
                 options={[
                   { label: 'Residential', value: 'res' },
                   { label: 'Commercial', value: 'comm' },
                   { label: 'Industrial', value: 'ind' }
                 ]}
               />
-              <Input label="Community / Building Name" placeholder="e.g. Shanti Vihar" />
+              <Input 
+                label="Community / Building Name" 
+                placeholder="e.g. Shanti Vihar" 
+                value={propertyDetails.community}
+                onChange={(e) => setPropertyDetails({...propertyDetails, community: e.target.value})}
+              />
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Remarks</label>
                 <textarea 
                   className="w-full p-4 rounded-xl border border-gray-200 dark:border-gray-800 dark:bg-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all min-h-[100px]"
                   placeholder="Any specific observations..."
+                  value={propertyDetails.remarks}
+                  onChange={(e) => setPropertyDetails({...propertyDetails, remarks: e.target.value})}
                 ></textarea>
               </div>
             </Card>
@@ -196,22 +314,22 @@ export default function VisitForm({ params: paramsPromise }: { params: Promise<{
             <Card className="space-y-4">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white border-b border-gray-50 dark:border-gray-800 pb-4">Area & Dimensions</h2>
               <div className="grid grid-cols-2 gap-4">
-                <Input label="Plot Area (Sqft)" type="number" />
-                <Input label="Built-up Area (Sqft)" type="number" />
+                <Input label="Plot Area (Sqft)" type="number" value={measurementData.plot_area} onChange={(e) => setMeasurementData({...measurementData, plot_area: e.target.value})} />
+                <Input label="Built-up Area (Sqft)" type="number" value={measurementData.builtup_area} onChange={(e) => setMeasurementData({...measurementData, builtup_area: e.target.value})} />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Input label="Length (Ft)" type="number" />
-                <Input label="Depth (Ft)" type="number" />
+                <Input label="Length (Ft)" type="number" value={measurementData.length} onChange={(e) => setMeasurementData({...measurementData, length: e.target.value})} />
+                <Input label="Depth (Ft)" type="number" value={measurementData.depth} onChange={(e) => setMeasurementData({...measurementData, depth: e.target.value})} />
               </div>
-              <Input label="Carpet Rate (per Sqft)" type="number" />
+              <Input label="Carpet Rate (per Sqft)" type="number" value={measurementData.carpet_rate} onChange={(e) => setMeasurementData({...measurementData, carpet_rate: e.target.value})} />
             </Card>
 
             <Card className="space-y-4">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white border-b border-gray-50 dark:border-gray-800 pb-4">Boundaries</h2>
-              <Input label="North" placeholder="e.g. Society Road" />
-              <Input label="South" placeholder="e.g. Plot No. 102" />
-              <Input label="East" placeholder="e.g. Common Garden" />
-              <Input label="West" placeholder="e.g. Society Gate" />
+              <Input label="North" placeholder="e.g. Society Road" value={boundaryData.north} onChange={(e) => setBoundaryData({...boundaryData, north: e.target.value})} />
+              <Input label="South" placeholder="e.g. Plot No. 102" value={boundaryData.south} onChange={(e) => setBoundaryData({...boundaryData, south: e.target.value})} />
+              <Input label="East" placeholder="e.g. Common Garden" value={boundaryData.east} onChange={(e) => setBoundaryData({...boundaryData, east: e.target.value})} />
+              <Input label="West" placeholder="e.g. Society Gate" value={boundaryData.west} onChange={(e) => setBoundaryData({...boundaryData, west: e.target.value})} />
             </Card>
             
             <div className="flex gap-4">
@@ -293,7 +411,11 @@ export default function VisitForm({ params: paramsPromise }: { params: Promise<{
               </div>
             </Card>
 
-            <Button className="w-full py-5 rounded-2xl text-lg shadow-xl shadow-blue-200 dark:shadow-none">
+            <Button 
+              onClick={handleSubmit}
+              isLoading={isSubmitting}
+              className="w-full py-5 rounded-2xl text-lg shadow-xl shadow-blue-200 dark:shadow-none"
+            >
               Submit Final Report
             </Button>
             <Button variant="outline" onClick={() => setStep(4)} className="w-full py-4">
