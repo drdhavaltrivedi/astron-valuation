@@ -14,7 +14,10 @@ import {
   Clock,
   X,
   Trash2,
-  Edit2
+  Edit2,
+  Key,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import Input from '@/components/ui/Input';
@@ -27,7 +30,8 @@ export default function UsersPage() {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'engineer' });
+  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'engineer', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -75,7 +79,8 @@ export default function UsersPage() {
       }
       setIsInviteModalOpen(false);
       setEditingId(null);
-      setNewUser({ full_name: '', email: '', role: 'engineer' });
+      setNewUser({ name: '', email: '', role: 'engineer', password: '' });
+      setShowPassword(false);
     } catch (error) {
       console.error('Error saving user:', error);
       alert('Failed to save user. Email might be duplicate.');
@@ -86,7 +91,7 @@ export default function UsersPage() {
 
   function startEdit(user: any) {
     setEditingId(user.id);
-    setNewUser({ name: user.name, email: user.email, role: user.role });
+    setNewUser({ name: user.name, email: user.email, role: user.role, password: user.password || '' });
     setIsInviteModalOpen(true);
   }
 
@@ -253,7 +258,7 @@ export default function UsersPage() {
           <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">{editingId ? 'Edit User' : 'Invite New User'}</h3>
-              <button onClick={() => { setIsInviteModalOpen(false); setEditingId(null); setNewUser({ full_name: '', email: '', role: 'engineer' }); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
+              <button onClick={() => { setIsInviteModalOpen(false); setEditingId(null); setNewUser({ name: '', email: '', role: 'engineer', password: '' }); setShowPassword(false); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
                 <X className="h-5 w-5 text-gray-500" />
               </button>
             </div>
@@ -280,9 +285,25 @@ export default function UsersPage() {
                   { label: 'Super Admin', value: 'super_admin' },
                 ]}
               />
+              <div className="relative">
+                <Input 
+                  label="Password" 
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Minimum 6 characters"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-[38px] text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
               <div className="pt-2 flex gap-3">
-                <Button variant="outline" className="flex-1" onClick={() => setIsInviteModalOpen(false)}>Cancel</Button>
-                <Button className="flex-1" isLoading={isSaving} onClick={saveUser}>Send Invite</Button>
+                <Button variant="outline" className="flex-1" onClick={() => { setIsInviteModalOpen(false); setEditingId(null); setNewUser({ name: '', email: '', role: 'engineer', password: '' }); setShowPassword(false); }}>Cancel</Button>
+                <Button className="flex-1" isLoading={isSaving} onClick={saveUser}>{editingId ? 'Save Changes' : 'Send Invite'}</Button>
               </div>
             </div>
           </div>
