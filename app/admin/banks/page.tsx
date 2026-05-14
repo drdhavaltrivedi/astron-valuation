@@ -10,7 +10,8 @@ import {
   MoreVertical, 
   ExternalLink,
   ShieldCheck,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import Input from '@/components/ui/Input';
@@ -52,6 +53,9 @@ export default function BanksPage() {
     } catch (error) {
       console.error('Error deleting bank:', error);
       alert('Failed to delete bank. It might be referenced by existing cases.');
+    }
+  }
+
   async function saveBank() {
     if (!newBank.name || !newBank.code) return alert('Please fill all fields');
     setIsSaving(true);

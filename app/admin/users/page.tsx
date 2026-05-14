@@ -44,6 +44,11 @@ export default function UsersPage() {
       setUsers(data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   async function saveUser() {
     if (!newUser.full_name || !newUser.email) return alert('Please fill all fields');
     setIsSaving(true);

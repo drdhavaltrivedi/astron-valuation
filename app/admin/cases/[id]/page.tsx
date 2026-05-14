@@ -52,7 +52,8 @@ export default function CaseDetailsPage({ params: paramsPromise }: { params: Pro
             measurements (*),
             boundaries (*),
             photos (*)
-          )
+          ),
+          tickets (*)
         `)
         .eq('id', params.id)
         .single();
@@ -61,6 +62,9 @@ export default function CaseDetailsPage({ params: paramsPromise }: { params: Pro
       setCaseData(data);
     } catch (error) {
       console.error('Error fetching case details:', error);
+    }
+  }
+
   async function updateStatus(newStatus: string) {
     setIsLoading(true);
     try {
@@ -174,7 +178,8 @@ export default function CaseDetailsPage({ params: paramsPromise }: { params: Pro
 
           <div className="animate-in fade-in duration-300">
             {activeTab === 'details' && (
-              <div className="space-y-                <Card>
+              <div className="space-y-6">
+                <Card>
                   <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6">Property Submission</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-1">
@@ -209,7 +214,6 @@ export default function CaseDetailsPage({ params: paramsPromise }: { params: Pro
                     "{visit?.remarks || 'No remarks provided.'}"
                   </p>
                 </Card>
-rd>
               </div>
             )}
 
@@ -265,7 +269,7 @@ rd>
                   <Button size="sm" variant="outline" icon={Plus}>Raise New Query</Button>
                 </div>
                 
-                {caseData.queries.map((q) => (
+                {caseData.tickets?.map((q: any) => (
                   <Card key={q.id} className="p-4 border-l-4 border-l-blue-600">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center gap-2">

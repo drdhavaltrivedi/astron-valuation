@@ -31,6 +31,7 @@ export default function NewCasePage() {
   const router = useRouter();
   const [banks, setBanks] = useState<any[]>([]);
   const [engineers, setEngineers] = useState<any[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchFormData();
